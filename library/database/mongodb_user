@@ -37,6 +37,11 @@ options:
             - The password used to authenticate with
         required: false
         default: null
+    login_database:
+        description:
+            - The database to authenticate on
+        required: false
+        default: null
     login_host:
         description:
             - The host running the database
@@ -90,18 +95,18 @@ author: Elliott Foster
 
 EXAMPLES = '''
 # Create 'burgers' database user with name 'bob' and password '12345'.
-- mongodb_user: database=burgers name=bob password=12345 state=present
+- mongodb_user: database=burgers user=bob password=12345 state=present
 
 # Delete 'burgers' database user with name 'bob'.
-- mongodb_user: database=burgers name=bob state=absent
+- mongodb_user: database=burgers user=bob state=absent
 
 # Define more users with various specific roles (if not defined, no roles is assigned, and the user will be added via pre mongo 2.2 style)
-- mongodb_user: database=burgers name=ben password=12345 roles='read' state=present
-- mongodb_user: database=burgers name=jim password=12345 roles='readWrite,dbAdmin,userAdmin' state=present
-- mongodb_user: database=burgers name=joe password=12345 roles='readWriteAnyDatabase' state=present
+- mongodb_user: database=burgers user=ben password=12345 roles='read' state=present
+- mongodb_user: database=burgers user=jim password=12345 roles='readWrite,dbAdmin,userAdmin' state=present
+- mongodb_user: database=burgers user=joe password=12345 roles='readWriteAnyDatabase' state=present
 
 # add a user to database in a replica set, the primary server is automatically discovered and written to
-- mongodb_user: database=burgers name=bob replica_set=blecher password=12345 roles='readWriteAnyDatabase' state=present
+- mongodb_user: database=burgers user=bob replica_set=blecher password=12345 roles='readWriteAnyDatabase' state=present
 '''
 
 import ConfigParser
@@ -182,6 +187,7 @@ def main():
 
     login_user = module.params['login_user']
     login_password = module.params['login_password']
+    login_database = module.params['login_database']
     login_host = module.params['login_host']
     login_port = module.params['login_port']
     replica_set = module.params['replica_set']
@@ -215,7 +221,10 @@ def main():
             module.fail_json(msg='when supplying login arguments, both login_user and login_password must be provided')
 
         if login_user is not None and login_password is not None:
-            client.admin.authenticate(login_user, login_password)
+            if login_database is not None:
+                client.admin.authenticate(login_user, login_password, login_database)
+            else:
+                client.admin.authenticate(login_user, login_password)
 
     except ConnectionFailure, e:
         module.fail_json(msg='unable to connect to database: %s' % str(e))
